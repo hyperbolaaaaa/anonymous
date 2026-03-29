@@ -378,7 +378,7 @@ async def flush_media_group(
 async def schedule_media_group_flush(
     context: ContextTypes.DEFAULT_TYPE, chat_id: int, media_group_id: str
 ) -> None:
-    await asyncio.sleep(1.0)
+    await asyncio.sleep(1.6)  # debounce
     await flush_media_group(context, chat_id, media_group_id)
 
 
@@ -669,23 +669,42 @@ async def anonymous_forward(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
 
     media_group_id = update.message.media_group_id
+    now_ts = time.time()
+
     if media_group_id:
         prune_pending_media_groups(context)
         pending_groups = context.application.bot_data.setdefault("pending_media_groups", {})
         key = (chat_id, str(media_group_id))
+
+        existing = pending_groups.get(key)
+        if existing and existing.get("task"):
+            existing["task"].cancel()
+
+        task = asyncio.create_task(
+            schedule_media_group_flush(context, chat_id, str(media_group_id))
+        )
+
         if key not in pending_groups:
-            task = asyncio.create_task(
-                schedule_media_group_flush(context, chat_id, str(media_group_id))
-            )
             pending_groups[key] = {
                 "message_ids": [],
                 "task": task,
                 "created_at": now_ts,
                 "last_updated_at": now_ts,
             }
+        else:
+            pending_groups[key]["task"] = task
+
         pending_groups[key]["message_ids"].append(update.message.message_id)
         pending_groups[key]["last_updated_at"] = now_ts
         return
+
+    # cooldown must be AFTER album handling
+    cooldown = context.application.bot_data.setdefault("user_cooldown", {})
+    last_seen_ts = float(cooldown.get(user_id, 0.0))
+    if now_ts - last_seen_ts < USER_COOLDOWN_SECONDS:
+        return
+    cooldown[user_id] = now_ts
+
 
     # copy_message keeps it anonymous. If Telegram rejects copy for a media type,
     # fall back to sending the same media by file_id.
