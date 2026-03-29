@@ -754,7 +754,22 @@ async def main_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await handle_broadcast_input(update, context)
         return
     await anonymous_forward(update, context)
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import os
 
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running")
+
+def run_server():
+    port = int(os.getenv("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    server.serve_forever()
+
+threading.Thread(target=run_server, daemon=True).start()
 
 def main() -> None:
     token = os.getenv("TELEGRAM_BOT_TOKEN")
