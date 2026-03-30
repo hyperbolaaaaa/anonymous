@@ -419,19 +419,29 @@ async def send_album_item_from_snapshot(
 
 def build_input_media_from_snapshot(item: dict):
     kind = item.get("kind")
+
     common = {
         "media": item["file_id"],
         "caption": item.get("caption"),
         "caption_entities": item.get("caption_entities"),
     }
+
     if kind == "photo":
         return InputMediaPhoto(**common)
+
     if kind == "video":
         return InputMediaVideo(**common)
+
     if kind == "document":
         return InputMediaDocument(**common)
+
     if kind == "audio":
         return InputMediaAudio(**common)
+
+    if kind == "animation":
+        # 🔥 THIS IS THE FIX
+        return InputMediaVideo(**common)
+
     return None
 
 
