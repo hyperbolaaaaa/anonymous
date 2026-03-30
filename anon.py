@@ -966,7 +966,7 @@ async def main_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 def main():
     # token = os.getenv("TELEGRAM_BOT_TOKEN")
     token = "8647557552:AAEYbCBHPD6gdt4Zy2wlJzQSiTw9oYGdelY"
-    admin_user_id = int(os.getenv("ADMIN_USER_ID"))
+    admin_user_id = 8503526321
 
     db_dsn = get_db_dsn()
     init_db(db_dsn)
