@@ -953,8 +953,8 @@ async def main_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 def main() -> None:
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    admin_user_id_raw = os.getenv("ADMIN_USER_ID")
+    token = "8647557552:AAEYbCBHPD6gdt4Zy2wlJzQSiTw9oYGdelY"
+    admin_user_id_raw = 8503526321
     if not token:
         raise RuntimeError(
             "Missing TELEGRAM_BOT_TOKEN environment variable. "
