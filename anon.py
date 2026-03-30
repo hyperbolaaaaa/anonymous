@@ -40,7 +40,7 @@ USER_COOLDOWN_SECONDS = float(os.getenv("USER_COOLDOWN_SECONDS", "1.0"))
 BROADCAST_CONCURRENCY = int(os.getenv("BROADCAST_CONCURRENCY", "20"))
 MAX_PENDING_MEDIA_GROUPS = int(os.getenv("MAX_PENDING_MEDIA_GROUPS", "1000"))
 PENDING_MEDIA_GROUP_TTL_SECONDS = int(os.getenv("PENDING_MEDIA_GROUP_TTL_SECONDS", "120"))
-ALBUM_DEBOUNCE_SECONDS = float(os.getenv("ALBUM_DEBOUNCE_SECONDS", "1.6"))
+ALBUM_DEBOUNCE_SECONDS = float(os.getenv("ALBUM_DEBOUNCE_SECONDS", "2.5"))
 
 WELCOME_TEXT = (
     "👋 Welcome to Anonymous Forward Bot.\n\n"
@@ -504,6 +504,7 @@ async def flush_media_group(
     for i, media in enumerate(media_group_payload):
         if i != 0:
             media.caption = None
+            media.caption_entities = None
 
     if len(media_group_payload) >= 2:
         await context.bot.send_media_group(
