@@ -489,22 +489,6 @@ async def flush_media_group(
     )
     snapshots = group_data.get("snapshots", {})
 
-    try:
-        # Most reliable path for album echo in the same chat.
-        await context.bot.copy_messages(
-            chat_id=chat_id,
-            from_chat_id=chat_id,
-            message_ids=message_ids,
-        )
-        return
-    except Exception as exc:
-        logger.warning(
-            "copy_messages failed for chat_id=%s media_group_id=%s: %s",
-            chat_id,
-            media_group_id,
-            exc,
-        )
-
     media_group_payload = []
     fallback_individual_items: list[dict] = []
     for message_id in message_ids:
@@ -518,6 +502,11 @@ async def flush_media_group(
             fallback_individual_items.append(item)
 
     if len(media_group_payload) >= 2:
+        # Telegram allows caption only on one album item; keep it on the first.
+        for idx, media in enumerate(media_group_payload):
+            if idx != 0:
+                media.caption = None
+                media.caption_entities = None
         try:
             # send_media_group guarantees full album dispatch when payload is valid.
             await context.bot.send_media_group(chat_id=chat_id, media=media_group_payload)
@@ -963,19 +952,28 @@ async def main_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     await anonymous_forward(update, context)
 
 
-def main():
-    # token = os.getenv("TELEGRAM_BOT_TOKEN")
-    token = "8647557552:AAEYbCBHPD6gdt4Zy2wlJzQSiTw9oYGdelY"
-    admin_user_id = 8503526321
-
+def main() -> None:
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    admin_user_id_raw = os.getenv("ADMIN_USER_ID")
+    if not token:
+        raise RuntimeError(
+            "Missing TELEGRAM_BOT_TOKEN environment variable. "
+            "Set it before running the bot."
+        )
+    if not admin_user_id_raw:
+        raise RuntimeError(
+            "Missing ADMIN_USER_ID environment variable. "
+            "Set it to your Telegram numeric user ID."
+        )
+    admin_user_id = int(admin_user_id_raw)
     db_dsn = get_db_dsn()
     init_db(db_dsn)
 
     application = Application.builder().token(token).build()
     application.bot_data["db_path"] = db_dsn
     application.bot_data["admin_user_id"] = admin_user_id
-
     application.add_error_handler(on_error)
+
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("admin", admin))
     application.add_handler(CommandHandler("ban", ban_command))
@@ -983,18 +981,16 @@ def main():
     application.add_handler(
         CallbackQueryHandler(admin_callbacks, pattern=f"^{ADMIN_MENU_PREFIX}")
     )
-    application.add_handler(
-        MessageHandler(filters.ALL & ~filters.COMMAND, main_message_handler)
-    )
+    application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, main_message_handler))
 
-    port = int(os.environ.get("PORT", 10000))
+    startup_delay = int(os.getenv("STARTUP_DELAY_SECONDS", "0"))
 
-    # VERY IMPORTANT
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=port,
-        url_path=token,
-        webhook_url=f"https://anon.onrender.com/{token}",
+    logger.info("Bot is running...")
+    if startup_delay > 0:
+        logger.info("Startup delay enabled: waiting %s seconds before connecting to Telegram.", startup_delay)
+        time.sleep(startup_delay)
+    application.run_polling(
+        allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True,
     )
 
